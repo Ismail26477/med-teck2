@@ -15,7 +15,7 @@ const userSchema = new mongoose.Schema({
   medications: [String],
 }, { timestamps: true });
 
-const User = mongoose.models.User || mongoose.model('User', userSchema);
+const User = mongoose.models.User || mongoose.model<any>('User', userSchema);
 
 let isConnected = false;
 
