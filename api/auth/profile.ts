@@ -22,14 +22,18 @@ async function connectDB() {
   if (isConnected) return;
 
   if (!process.env.MONGODB_URI) {
-    throw new Error('MONGODB_URI not defined');
+    const error = new Error('MONGODB_URI environment variable not set. Please add it in Vercel Settings > Environment Variables');
+    console.error('[v0] Database config error:', error.message);
+    throw error;
   }
 
   try {
+    console.log('[v0] Connecting to MongoDB...');
     await mongoose.connect(process.env.MONGODB_URI);
     isConnected = true;
+    console.log('[v0] MongoDB connected successfully');
   } catch (error) {
-    console.error('[v0] MongoDB connection failed:', error);
+    console.error('[v0] MongoDB connection failed:', error instanceof Error ? error.message : error);
     throw error;
   }
 }
