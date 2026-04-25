@@ -18,29 +18,26 @@ const userSchema = new mongoose.Schema({
 const User = mongoose.models.User || mongoose.model<any>('User', userSchema);
 
 async function connectDB() {
-  // Check if already connected
   if (mongoose.connection.readyState === 1) {
-    console.log('[v0] MongoDB already connected');
     return;
   }
 
-  if (!process.env.MONGODB_URI) {
-    const error = new Error('MONGODB_URI environment variable not set. Please add it in Vercel Settings > Environment Variables');
-    console.error('[v0] Database config error:', error.message);
-    throw error;
+  const mongoUri = process.env.MONGODB_URI;
+  if (!mongoUri) {
+    throw new Error('MONGODB_URI not configured. Add it to Vercel project settings.');
   }
 
   try {
-    console.log('[v0] Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI, {
+    await mongoose.connect(mongoUri, {
       maxPoolSize: 10,
-      serverSelectionTimeoutMS: 10000,
+      serverSelectionTimeoutMS: 15000,
       socketTimeoutMS: 45000,
-    });
-    console.log('[v0] MongoDB connected successfully');
+      retryWrites: true,
+      w: 'majority',
+    } as any);
   } catch (error) {
-    console.error('[v0] MongoDB connection failed:', error instanceof Error ? error.message : error);
-    throw error;
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    throw new Error(`MongoDB connection failed: ${errorMsg}`);
   }
 }
 
