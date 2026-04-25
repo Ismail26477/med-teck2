@@ -70,13 +70,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
-    if (user.password !== password) {
+    // Simple password comparison (TODO: implement bcrypt)
+    const passwordMatch = user.password === password;
+    
+    if (!passwordMatch) {
       console.log('[v0] Password mismatch');
       return res.status(401).json({ success: false, error: 'Invalid credentials' });
     }
 
     console.log('[v0] Login successful for user:', user._id);
-    res.json({
+    return res.status(200).json({
       success: true,
       data: {
         _id: user._id,
@@ -90,6 +93,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     });
   } catch (error) {
     console.error('[v0] Login error:', error);
-    res.status(500).json({ success: false, error: 'Login failed', details: error instanceof Error ? error.message : 'Unknown error' });
+    return res.status(500).json({ success: false, error: 'Login failed', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 }
