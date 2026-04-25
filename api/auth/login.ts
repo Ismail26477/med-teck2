@@ -17,11 +17,13 @@ const userSchema = new mongoose.Schema({
 
 const User = mongoose.models.User || mongoose.model<any>('User', userSchema);
 
-// MongoDB connection cache
-let isConnected = false;
-
+// MongoDB connection with better error handling
 async function connectDB() {
-  if (isConnected) return;
+  // Check if already connected
+  if (mongoose.connection.readyState === 1) {
+    console.log('[v0] MongoDB already connected');
+    return;
+  }
 
   if (!process.env.MONGODB_URI) {
     const error = new Error('MONGODB_URI environment variable not set. Please add it in Vercel Settings > Environment Variables');
@@ -31,8 +33,11 @@ async function connectDB() {
 
   try {
     console.log('[v0] Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI);
-    isConnected = true;
+    await mongoose.connect(process.env.MONGODB_URI, {
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    });
     console.log('[v0] MongoDB connected successfully');
   } catch (error) {
     console.error('[v0] MongoDB connection failed:', error instanceof Error ? error.message : error);
