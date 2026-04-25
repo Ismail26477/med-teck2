@@ -1,48 +1,22 @@
-import type { VercelRequest, VercelResponse } from '@vercel/node';
-import express from 'express';
+import express, { Express } from 'express';
+import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { connect } from 'mongoose';
 
 // Load environment variables
 dotenv.config();
 
 // Import routes
-import authRoutes from '../server/routes/auth.js';
-import medicationsRoutes from '../server/routes/medications.js';
-import allergiesRoutes from '../server/routes/allergies.js';
-import conditionsRoutes from '../server/routes/conditions.js';
-import filesRoutes from '../server/routes/files.js';
-import reportsRoutes from '../server/routes/reports.js';
-import shareRoutes from '../server/routes/share.js';
+import authRoutes from './routes/auth';
+import medicationsRoutes from './routes/medications';
+import allergiesRoutes from './routes/allergies';
+import conditionsRoutes from './routes/conditions';
+import filesRoutes from './routes/files';
+import reportsRoutes from './routes/reports';
+import shareRoutes from './routes/share';
 
-const app = express();
-
-// MongoDB connection
-const MONGODB_URI = process.env.MONGODB_URI;
-const MONGODB_DB = process.env.MONGODB_DB || 'medisync';
-
-if (!MONGODB_URI) {
-  throw new Error('MONGODB_URI environment variable is not set');
-}
-
-// Connect to MongoDB
-let dbConnected = false;
-
-const connectDB = async () => {
-  if (dbConnected) return;
-  
-  try {
-    await connect(MONGODB_URI, {
-      dbName: MONGODB_DB,
-    });
-    dbConnected = true;
-    console.log('[v0] Connected to MongoDB');
-  } catch (error) {
-    console.error('[v0] MongoDB connection error:', error);
-    throw error;
-  }
-};
+const app: Express = express();
+const PORT = process.env.PORT || 5000;
 
 // Middleware
 const allowedOrigins = [
@@ -61,9 +35,34 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true,
 }));
-
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+// Request logging middleware
+app.use((req, res, next) => {
+  console.log(`[v0] ${req.method} ${req.path}`);
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log('[v0] Body:', JSON.stringify(req.body).substring(0, 200));
+  }
+  next();
+});
+
+// MongoDB Connection
+const connectDB = async () => {
+  try {
+    if (!process.env.MONGODB_URI) {
+      throw new Error('MONGODB_URI not defined in environment variables');
+    }
+    await mongoose.connect(process.env.MONGODB_URI);
+    console.log('[v0] MongoDB connected successfully');
+  } catch (error) {
+    console.error('[v0] MongoDB connection failed:', error);
+    process.exit(1);
+  }
+};
+
+// Connect to MongoDB
+connectDB();
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -76,35 +75,10 @@ app.use('/api/share', shareRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  res.json({ status: 'Server is running' });
 });
 
-// Error handling
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('[v0] Error:', err);
-  res.status(err.status || 500).json({
-    error: err.message || 'Internal server error',
-  });
+// Start server
+app.listen(PORT, () => {
+  console.log(`[v0] Server running on http://localhost:${PORT}`);
 });
-
-// Vercel Serverless Function Handler
-export default async (req: VercelRequest, res: VercelResponse) => {
-  // Connect to DB on first request
-  if (!dbConnected) {
-    try {
-      await connectDB();
-    } catch (error) {
-      return res.status(500).json({
-        error: 'Database connection failed',
-        details: (error as Error).message,
-      });
-    }
-  }
-
-  // Handle the request
-  return new Promise((resolve) => {
-    app(req as any, res as any, () => {
-      resolve(undefined);
-    });
-  });
-};
