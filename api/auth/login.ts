@@ -1,62 +1,59 @@
 import { VercelRequest, VercelResponse } from '@vercel/node';
 import mongoose from 'mongoose';
 
-// Define User model inline to avoid import issues
+// User schema
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true },
   password: { type: String, required: true },
   name: { type: String, required: true },
-  dateOfBirth: { type: String },
-  bloodType: { type: String },
-  emergencyContact: { type: String },
-  emergencyPhone: { type: String },
+  dateOfBirth: String,
+  bloodType: String,
+  emergencyContact: String,
+  emergencyPhone: String,
   allergies: [String],
   conditions: [String],
   medications: [String],
 }, { timestamps: true });
 
-const User = mongoose.models.User || mongoose.model<any>('User', userSchema);
+let User: any;
 
-// MongoDB connection with better error handling
+// Get User model safely
+function getUser() {
+  if (!User) {
+    User = mongoose.models.User || mongoose.model('User', userSchema);
+  }
+  return User;
+}
+
+// MongoDB connection
 async function connectDB() {
-  // Check if already connected
   if (mongoose.connection.readyState === 1) {
     return;
   }
 
   const mongoUri = process.env.MONGODB_URI;
-  
   if (!mongoUri) {
-    throw new Error('MONGODB_URI not configured. Add it to Vercel project settings.');
+    throw new Error('MONGODB_URI environment variable is required');
   }
 
   try {
     await mongoose.connect(mongoUri, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 15000,
+      maxPoolSize: 5,
+      serverSelectionTimeoutMS: 10000,
       socketTimeoutMS: 45000,
-      retryWrites: true,
-      w: 'majority',
     } as any);
-  } catch (error) {
-    const errorMsg = error instanceof Error ? error.message : String(error);
-    throw new Error(`MongoDB connection failed: ${errorMsg}`);
+  } catch (err) {
+    throw err;
   }
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Enable CORS
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  res.setHeader('Access-Control-Allow-Methods', 'POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
-    res.status(200).end();
-    return;
+    return res.status(200).end();
   }
 
   if (req.method !== 'POST') {
@@ -65,6 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     await connectDB();
+    const User = getUser();
 
     const { email, password } = req.body;
 
@@ -91,10 +89,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
   } catch (error) {
+    console.error('[v0] Login error:', error);
     return res.status(500).json({ 
       success: false, 
-      error: 'Server error',
-      details: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Server error'
     });
   }
 }
