@@ -62,7 +62,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      res.json({
+      return res.status(200).json({
         id: user._id,
         email: user.email,
         name: user.name,
@@ -77,7 +77,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return res.status(404).json({ error: 'User not found' });
       }
 
-      res.json({
+      return res.status(200).json({
         id: user._id,
         email: user.email,
         name: user.name,
@@ -87,10 +87,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         emergencyPhone: user.emergencyPhone,
       });
     } else {
-      res.status(405).json({ error: 'Method not allowed' });
+      return res.status(405).json({ error: 'Method not allowed' });
     }
   } catch (error) {
     console.error('[v0] Profile error:', error);
-    res.status(500).json({ error: 'Failed to process request', details: error instanceof Error ? error.message : 'Unknown error' });
+    return res.status(500).json({ error: 'Failed to process request', details: error instanceof Error ? error.message : 'Unknown error' });
   }
 }
